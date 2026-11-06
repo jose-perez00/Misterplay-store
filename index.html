@@ -1,0 +1,182 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>MISTERPLAY STORE</title>
+
+<link rel="stylesheet" href="styles.css">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script defer src="ads.js"></script>
+<script defer src="app.js"></script>
+</head>
+
+<body>
+
+<header class="header">
+    <div class="logo">MP <span>MISTERPLAY STORE</span></div>
+
+    <nav>
+        <a href="#inicio">Inicio</a>
+        <a href="#catalogo">Catálogo</a>
+        <a href="#publicar">Publicar</a>
+        <button id="loginBtn">Ingresar</button>
+        <button id="logoutBtn" hidden>Salir</button>
+    </nav>
+</header>
+
+<section class="hero" id="inicio">
+
+    <h1 class="titulo-3d">MISTERPLAY <span>STORE</span></h1>
+
+    <h2>DESCUBRE UN NUEVO MUNDO DIGITAL</h2>
+
+    <p>Aplicaciones APK, juegos HTML y páginas web.</p>
+
+    <a href="#catalogo" class="btn">EXPLORAR PROYECTOS</a>
+
+</section>
+
+<section class="advertisement">
+
+    <span>PUBLICIDAD</span>
+
+    <div id="homeAd" class="ad-box">
+        Espacio publicitario
+    </div>
+
+</section>
+
+<section class="catalogo" id="catalogo">
+
+    <h2>CATÁLOGO DIGITAL</h2>
+
+    <input
+        type="search"
+        id="buscador"
+        placeholder="Buscar aplicaciones y juegos..."
+    >
+
+    <div class="categorias">
+        <button data-filter="all">Todos</button>
+        <button data-filter="apk">APK</button>
+        <button data-filter="html">Juegos HTML</button>
+        <button data-filter="web">Páginas web</button>
+    </div>
+
+    <div id="proyectos" class="proyectos">
+        Cargando proyectos...
+    </div>
+
+</section>
+
+<section class="publicar" id="publicar">
+
+    <h2>PUBLICA TU PROYECTO</h2>
+
+    <p>Sube una APK, un juego HTML o una página web empaquetada como ZIP. Los proyectos se revisan antes de aparecer en el catálogo.</p>
+
+    <form id="formProyecto" hidden>
+
+        <input name="titulo" placeholder="Nombre del proyecto" maxlength="100" required>
+
+        <select name="tipo" id="tipoProyecto" required>
+            <option value="apk">Aplicación APK</option>
+            <option value="html">Juego HTML</option>
+            <option value="web">Página web</option>
+        </select>
+
+        <textarea name="descripcion"
+        placeholder="Descripción del proyecto"
+        maxlength="2000"
+        required></textarea>
+
+        <label for="archivoProyecto" id="ayudaArchivo">
+            Selecciona el archivo APK que quieres publicar. Máximo 100 MB.
+        </label>
+        <input type="file" id="archivoProyecto" name="archivo"
+        accept=".apk,application/vnd.android.package-archive" required>
+
+        <label for="portadaProyecto">
+            Portada opcional (PNG, JPG o WEBP; máximo 5 MB).
+        </label>
+        <input type="file" id="portadaProyecto" name="portada"
+        accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp">
+
+        <button type="submit">PUBLICAR PROYECTO</button>
+
+        <p id="mensaje"></p>
+
+    </form>
+
+    <p id="mensajeLogin">Inicia sesión para publicar.</p>
+
+</section>
+
+<section id="administracion" hidden>
+
+    <h2>PANEL ADMINISTRADOR</h2>
+
+    <div class="estadisticas">
+
+        <div class="stat">
+            <h3 id="totalProyectos">0</h3>
+            <p>Proyectos</p>
+        </div>
+
+        <div class="stat">
+            <h3 id="totalDescargas">0</h3>
+            <p>Descargas solicitadas</p>
+        </div>
+
+        <div class="stat">
+            <h3 id="pendientes">0</h3>
+            <p>Pendientes</p>
+        </div>
+
+    </div>
+
+    <h3>Proyectos pendientes</h3>
+
+    <div id="listaPendientes"></div>
+
+</section>
+
+<footer>
+    © 2026 MISTERPLAY STORE
+    <p>Todos los derechos reservados.</p>
+    <a href="politicas.html">Política de privacidad</a>
+</footer>
+
+<dialog id="loginDialog">
+
+    <form id="formLogin">
+
+        <h2>CUENTA MISTERPLAY</h2>
+
+        <input name="email" type="email"
+        placeholder="Correo electrónico" required>
+
+        <input name="password" type="password"
+        placeholder="Contraseña (mínimo 8 caracteres)" minlength="8" required>
+
+        <button type="submit">INGRESAR</button>
+
+        <button type="button" id="registroBtn">
+            CREAR CUENTA
+        </button>
+
+        <button type="button" id="cerrarLogin">CERRAR</button>
+
+        <p id="estadoLogin"></p>
+
+    </form>
+
+</dialog>
+
+</body>
+</html>
