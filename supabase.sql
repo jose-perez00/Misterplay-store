@@ -137,7 +137,7 @@ values
 'store-files',
 'store-files',
 false,
-104857600,
+52428800,
 array[
 'application/vnd.android.package-archive',
 'application/zip',

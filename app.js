@@ -153,22 +153,25 @@ function actualizarFormatoArchivo() {
 
     const formatos = {
         apk: {
-            accept: ".apk,application/vnd.android.package-archive",
-            ayuda: "Selecciona un archivo APK. Máximo 100 MB."
+            // Sin filtro estricto: algunos selectores de Android ocultan
+            // las APK cuando se limita por tipo. Se valida la extensión al enviar.
+            accept: "",
+            ayuda: "Selecciona un archivo APK. Máximo 50 MB."
         },
         html: {
             accept: ".html,.htm,.zip,text/html,application/zip,application/x-zip-compressed",
-            ayuda: "Selecciona un archivo HTML o un ZIP con index.html y sus recursos. Máximo 100 MB."
+            ayuda: "Selecciona un archivo HTML o un ZIP con index.html y sus recursos. Máximo 50 MB."
         },
         web: {
             accept: ".zip,application/zip,application/x-zip-compressed",
-            ayuda: "Sube un ZIP con index.html en la raíz y todos los recursos del sitio. Máximo 100 MB."
+            ayuda: "Sube un ZIP con index.html en la raíz y todos los recursos del sitio. Máximo 50 MB."
         }
     };
 
     const formato = formatos[tipoProyecto.value];
 
-    archivoProyecto.accept = formato.accept;
+    if(formato.accept) archivoProyecto.accept = formato.accept;
+    else archivoProyecto.removeAttribute("accept");
     $("ayudaArchivo").textContent = formato.ayuda;
 
     if(archivoProyecto.value)
@@ -177,6 +180,34 @@ function actualizarFormatoArchivo() {
 
 tipoProyecto.addEventListener("change", actualizarFormatoArchivo);
 actualizarFormatoArchivo();
+
+const LIMITE_ARCHIVO = 50 * 1024 * 1024;
+
+const TIPOS_MIME = {
+    ".apk": "application/vnd.android.package-archive",
+    ".zip": "application/zip",
+    ".html": "text/html",
+    ".htm": "text/html"
+};
+
+function mensajeError(error) {
+    const texto = String(error?.message || "");
+    const codigo = String(error?.statusCode || error?.status || "");
+
+    if(codigo === "413" || /maximum allowed size|too large/i.test(texto))
+        return "El archivo es demasiado grande. El máximo es 50 MB.";
+
+    if(codigo === "415" || /mime type/i.test(texto))
+        return "El tipo de archivo no está permitido.";
+
+    if(/row-level security|unauthorized/i.test(texto))
+        return "No tienes permiso para subir archivos. Cierra sesión y vuelve a entrar.";
+
+    if(/failed to fetch|network/i.test(texto))
+        return "Error de conexión durante la subida. Revisa tu internet e inténtalo de nuevo.";
+
+    return texto || "No se pudo publicar el proyecto.";
+}
 
 // PUBLICAR PROYECTO
 $("formProyecto").addEventListener("submit",async e => {
@@ -206,8 +237,8 @@ $("formProyecto").addEventListener("submit",async e => {
         if(!archivo || !archivo.size)
             throw Error("Selecciona un archivo.");
 
-        if(archivo.size > 100 * 1024 * 1024)
-            throw Error("El archivo supera 100 MB.");
+        if(archivo.size > LIMITE_ARCHIVO)
+            throw Error("El archivo supera el máximo de 50 MB.");
 
         const nombreArchivo = archivo.name.toLowerCase();
         const extensionValida = extensionesPermitidas[tipo]?.some(
@@ -232,9 +263,21 @@ $("formProyecto").addEventListener("submit",async e => {
         usuario.id + "/" + crypto.randomUUID() + "-" +
         archivo.name.replace(/[^a-zA-Z0-9._-]/g,"_");
 
+        // El navegador no siempre reporta el tipo correcto de una APK
+        // (a veces vacío o desconocido) y el almacenamiento lo rechaza.
+        // Se fija el tipo según la extensión.
+        const extension = nombreArchivo.slice(nombreArchivo.lastIndexOf("."));
+        const archivoSubida = new File(
+            [archivo],
+            archivo.name,
+            {type: TIPOS_MIME[extension] || "application/octet-stream"}
+        );
+
         const subida = await db.storage
         .from("store-files")
-        .upload(rutaArchivo,archivo);
+        .upload(rutaArchivo,archivoSubida,{
+            contentType: archivoSubida.type
+        });
 
         if(subida.error) throw subida.error;
 
@@ -257,7 +300,9 @@ $("formProyecto").addEventListener("submit",async e => {
             .getPublicUrl(rutaImagen).data.publicUrl;
         }
 
-        const {error} = await db.from("projects").insert({
+        // Las reglas de la base de datos solo permiten crear proyectos
+        // como "pending". Si eres administrador, se aprueba justo después.
+        const {data: nuevo, error} = await db.from("projects").insert({
 
             owner_id: usuario.id,
             title: datos.get("titulo"),
@@ -265,11 +310,26 @@ $("formProyecto").addEventListener("submit",async e => {
             description: datos.get("descripcion"),
             file_path: rutaArchivo,
             cover_url: imagen,
-            status: administrador ? "approved" : "pending"
+            status: "pending"
 
-        });
+        }).select("id").single();
 
         if(error) throw error;
+
+        // El proyecto ya existe: no borrar sus archivos si falla la aprobación.
+        rutaArchivo = null;
+        rutaImagen = null;
+
+        if(administrador) {
+            const {error: errorAprobar} = await db.from("projects")
+            .update({status: "approved"})
+            .eq("id", nuevo.id);
+
+            if(errorAprobar)
+                throw Error("Proyecto guardado, pero no se pudo aprobar. Apruébalo desde el panel administrador.");
+
+            cargarEstadisticas();
+        }
 
         $("mensaje").textContent = administrador
         ? "¡Proyecto publicado en el catálogo!"
@@ -300,7 +360,7 @@ $("formProyecto").addEventListener("submit",async e => {
             if(errorArchivo) archivosHuerfanos.push(errorArchivo.message);
         }
 
-        $("mensaje").textContent = error.message || "No se pudo publicar el proyecto.";
+        $("mensaje").textContent = mensajeError(error);
 
         if(archivosHuerfanos.length)
             console.error("No se pudieron eliminar archivos de una publicación fallida.", archivosHuerfanos);
