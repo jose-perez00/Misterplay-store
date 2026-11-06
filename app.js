@@ -1,6 +1,18 @@
 
 const config = window.MP_CONFIG;
 
+if (!window.supabase) {
+
+    const aviso = document.getElementById("proyectos");
+
+    if (aviso) {
+        aviso.textContent =
+        "Error: no se pudo cargar la librería de Supabase. Revisa tu conexión o desactiva el bloqueador de anuncios.";
+        aviso.style.color = "#ff7b7b";
+    }
+
+} else {
+
 const db = window.supabase.createClient(
     config.SUPABASE_URL,
     config.SUPABASE_ANON_KEY
@@ -426,3 +438,5 @@ db.auth.onAuthStateChange(() => {
     await cargarProyectos();
 
 })();
+
+} // fin del guard de window.supabase
