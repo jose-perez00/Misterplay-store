@@ -1,4 +1,8 @@
 
+(function() {
+
+"use strict";
+
 const config = window.MP_CONFIG;
 
 if (!window.supabase) {
@@ -11,7 +15,8 @@ if (!window.supabase) {
         aviso.style.color = "#ff7b7b";
     }
 
-} else {
+    return;
+}
 
 const db = window.supabase.createClient(
     config.SUPABASE_URL,
@@ -439,4 +444,4 @@ db.auth.onAuthStateChange(() => {
 
 })();
 
-} // fin del guard de window.supabase
+})();
