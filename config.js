@@ -2,10 +2,10 @@
 window.MP_CONFIG = {
 
     SUPABASE_URL:
-    "https://TU-PROYECTO.supabase.co",
+    "https://qmhzvhowsritfaqqhadt.supabase.co",
 
     SUPABASE_ANON_KEY:
-    "TU_CLAVE_PUBLICA_SUPABASE",
+    "sb_publishable_c3R-_RbuPWqTYct1ecjOjw_vWVaBUng",
 
     // Reemplaza ambos valores con los datos que te proporcione AdSense.
     ADSENSE_CLIENT:
