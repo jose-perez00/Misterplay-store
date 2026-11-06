@@ -5,3 +5,5 @@ movil-top.png
 movil-bottom.png
 .DS_Store
 Thumbs.db
+qa-*.mjs
+diag.png
