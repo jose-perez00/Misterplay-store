@@ -442,7 +442,11 @@ input:focus {
   inset: 0;
   display: grid;
   place-items: center;
-  padding: 20px;
+  overflow-y: auto;
+  padding: max(10px, env(safe-area-inset-top))
+    max(10px, env(safe-area-inset-right))
+    max(10px, env(safe-area-inset-bottom))
+    max(10px, env(safe-area-inset-left));
   background: #05050df5;
   backdrop-filter: blur(18px);
 }
@@ -457,6 +461,8 @@ input:focus {
   gap: 16px;
   width: min(100%, 1000px);
   max-height: 100%;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .video-playback-heading {
@@ -485,7 +491,9 @@ input:focus {
 #localVideoPlayer {
   display: block;
   width: 100%;
-  max-height: calc(100vh - 180px);
+  height: auto;
+  max-height: min(75vh, calc(100vh - 150px));
+  object-fit: contain;
   border-radius: 14px;
   background: #000;
 }
@@ -954,6 +962,49 @@ body.light .track {
     padding: 8px 11px;
   }
 
+  .video-playback-screen {
+    place-items: center;
+    padding: max(8px, env(safe-area-inset-top))
+      max(8px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left));
+  }
+
+  .video-playback-panel {
+    gap: 10px;
+    width: 100%;
+    max-height: 100%;
+  }
+
+  .video-playback-heading {
+    gap: 8px;
+  }
+
+  .video-playback-heading h2 {
+    max-width: 72vw;
+    font-size: 17px;
+  }
+
+  .video-playback-heading .playback-eyebrow {
+    margin-bottom: 3px;
+    font-size: 10px;
+  }
+
+  .video-playback-heading .close-playback-button {
+    min-width: 42px;
+    min-height: 42px;
+  }
+
+  #localVideoPlayer {
+    max-height: min(68vh, calc(100vh - 130px));
+    border-radius: 9px;
+  }
+
+  .video-playback-panel .hint {
+    font-size: 11px;
+    overflow-wrap: anywhere;
+  }
+
   .player {
     grid-template-columns: minmax(0, 1fr) auto auto;
     gap: 4px 6px;
@@ -1013,6 +1064,18 @@ body.light .track {
 
   footer {
     padding: 22px 14px;
+  }
+}
+
+@supports (height: 100dvh) {
+  #localVideoPlayer {
+    max-height: min(75dvh, calc(100dvh - 150px));
+  }
+
+  @media(max-width: 600px) {
+    #localVideoPlayer {
+      max-height: min(68dvh, calc(100dvh - 130px));
+    }
   }
 }
 
