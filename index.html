@@ -23,12 +23,31 @@
     <nav>
         <a href="#inicio">Inicio</a>
         <a href="#catalogo">Catálogo</a>
-        <a href="#musica">Música</a>
+        <button id="musicPlayerToggle" class="music-nav-link"
+                type="button" aria-controls="musicPlayerPanel"
+                aria-expanded="false" aria-label="Abrir MISTERPLAY MUSIC"
+                title="MISTERPLAY MUSIC">♫</button>
         <a href="#publicar">Publicar</a>
         <button id="loginBtn">Ingresar</button>
         <button id="logoutBtn" hidden>Salir</button>
     </nav>
 </header>
+
+<section id="musicPlayerPanel" class="music-player-panel" hidden
+         aria-label="Reproductor MISTERPLAY MUSIC">
+    <div class="music-player-heading">
+        <h2>MISTERPLAY MUSIC</h2>
+        <button id="closeMusicPlayer" class="music-player-close"
+                type="button" aria-label="Cerrar reproductor">×</button>
+    </div>
+    <iframe
+        class="music-player-frame"
+        data-src="musica/index.html?integrado=1"
+        title="Reproductor de música, radio y videos de MISTERPLAY"
+        allow="autoplay; fullscreen"
+        referrerpolicy="strict-origin-when-cross-origin">
+    </iframe>
+</section>
 
 <section class="hero" id="inicio">
 
@@ -40,24 +59,6 @@
 
     <a href="#catalogo" class="btn">EXPLORAR PROYECTOS</a>
 
-</section>
-
-<section class="musica-destacada" id="musica">
-    <div class="musica-encabezado">
-        <span class="musica-etiqueta">MISTERPLAY MUSIC</span>
-        <h2>Tu música, desde MISTERPLAY STORE</h2>
-        <p>Busca radios por ciudad o escucha tus canciones favoritas. Los archivos que selecciones permanecen en tu dispositivo; no se publican en la tienda.</p>
-        <a class="musica-enlace" href="musica/index.html"
-        target="_blank" rel="noopener">ABRIR REPRODUCTOR COMPLETO ↗</a>
-    </div>
-    <iframe
-        class="musica-reproductor"
-        src="musica/index.html?integrado=1"
-        title="Reproductor de música y radio MISTERPLAY"
-        loading="lazy"
-        allow="autoplay; fullscreen"
-        referrerpolicy="strict-origin-when-cross-origin">
-    </iframe>
 </section>
 
 <section class="advertisement">
@@ -197,5 +198,36 @@
 
 </dialog>
 
+<script>
+    const musicToggle = document.getElementById("musicPlayerToggle");
+    const musicPanel = document.getElementById("musicPlayerPanel");
+    const closeMusicPlayer = document.getElementById("closeMusicPlayer");
+    const musicFrame = document.querySelector(".music-player-frame");
+
+    function setMusicPlayerOpen(isOpen) {
+        musicPanel.hidden = !isOpen;
+        musicToggle.setAttribute("aria-expanded", String(isOpen));
+        musicToggle.setAttribute(
+            "aria-label",
+            isOpen ? "Cerrar MISTERPLAY MUSIC" : "Abrir MISTERPLAY MUSIC"
+        );
+        if (isOpen) {
+            if (musicFrame.dataset.loaded !== "true") {
+                musicFrame.src = musicFrame.dataset.src;
+                musicFrame.dataset.loaded = "true";
+            }
+            musicPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+        } else {
+            musicToggle.focus();
+        }
+    }
+
+    musicToggle.addEventListener("click", () => {
+        setMusicPlayerOpen(musicPanel.hidden);
+    });
+    closeMusicPlayer.addEventListener("click", () => {
+        setMusicPlayerOpen(false);
+    });
+</script>
 </body>
 </html>

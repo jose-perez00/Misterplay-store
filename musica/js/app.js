@@ -9,6 +9,10 @@ const RADIO_API = "https://de1.api.radio-browser.info/json";
 const LOCAL_MUSIC_DB_NAME = "misterplay-local-music";
 const LOCAL_MUSIC_STORE = "files";
 
+if (new URLSearchParams(location.search).get("integrado") === "1") {
+  document.body.classList.add("embedded-player");
+}
+
 const radioList = document.getElementById("radioList");
 const radioStatus = document.getElementById("radioStatus");
 const localList = document.getElementById("localList");
@@ -31,6 +35,7 @@ const playbackVolume = document.getElementById("playbackVolume");
 
 let playlist = [];
 let currentIndex = -1;
+let shuffleLocalPlayback = false;
 const localCoverUrls = new Set();
 const localCovers = new Map();
 let localTracks = [];
@@ -75,6 +80,28 @@ async function saveLocalMusicRecord(record) {
     );
     transaction.onabort = () => reject(
       transaction.error || new Error("Se canceló el guardado de música local.")
+    );
+  });
+}
+
+async function saveLocalMusicRecords(records) {
+  const database = await openLocalMusicDatabase();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(LOCAL_MUSIC_STORE, "readwrite");
+    const store = transaction.objectStore(LOCAL_MUSIC_STORE);
+    try {
+      records.forEach(record => store.put(record));
+    } catch (error) {
+      transaction.abort();
+      reject(error);
+      return;
+    }
+    transaction.oncomplete = resolve;
+    transaction.onerror = () => reject(
+      transaction.error || new Error("No se pudieron guardar todas las canciones.")
+    );
+    transaction.onabort = () => reject(
+      transaction.error || new Error("Se canceló la carga de las canciones.")
     );
   });
 }
@@ -137,6 +164,11 @@ function playTrack(index) {
       document.getElementById("screenPlayButton").textContent = "▶";
       document.getElementById("screenPlayButton").setAttribute("aria-label", "Reproducir");
       player.classList.remove("is-playing");
+      if (error.name === "NotAllowedError") {
+        localStatus.textContent =
+          "Tu música está lista. Toca Reproducir para iniciar el audio.";
+        return;
+      }
       document.getElementById("localStatus").textContent =
         `No se pudo reproducir "${track.name}". Comprueba que el archivo no esté dañado y que el navegador admita su formato y códec.`;
       return;
@@ -221,6 +253,11 @@ function playNextTrack() {
   if (activeRadio && currentRadioIndex >= 0 && radioStations.length) {
     playRadioStation((currentRadioIndex + 1) % radioStations.length);
   } else if (playlist.length && currentIndex >= 0) {
+    if (shuffleLocalPlayback && currentIndex === playlist.length - 1) {
+      playlist = shuffleTracks(localTracks, currentTrack?.id);
+      playTrack(0);
+      return;
+    }
     playTrack((currentIndex + 1) % playlist.length);
   }
 }
@@ -234,12 +271,43 @@ function playPreviousTrack() {
   }
 }
 
+function shuffleTracks(tracks, avoidFirstTrackId = "") {
+  const shuffled = [...tracks];
+  for (let index = shuffled.length - 1; index > 0; index--) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[randomIndex]] =
+      [shuffled[randomIndex], shuffled[index]];
+  }
+
+  if (shuffled.length > 1 && shuffled[0].id === avoidFirstTrackId) {
+    [shuffled[0], shuffled[1]] = [shuffled[1], shuffled[0]];
+  }
+  return shuffled;
+}
+
+function playAllLocalTracksRandomly() {
+  if (!localTracks.length) {
+    localStatus.textContent = "Primero selecciona canciones de tu dispositivo.";
+    return;
+  }
+
+  playlist = shuffleTracks(localTracks, currentTrack?.id);
+  shuffleLocalPlayback = true;
+  localStatus.textContent =
+    `Reproduciendo aleatoriamente las ${localTracks.length} canciones de tu biblioteca.`;
+  playTrack(0);
+}
+
 document.getElementById("screenNextButton").addEventListener("click", () => {
   document.getElementById("nextButton").click();
 });
 
 document.getElementById("screenPreviousButton").addEventListener("click", () => {
   document.getElementById("previousButton").click();
+});
+
+document.getElementById("shuffleLocalTracks").addEventListener("click", () => {
+  playAllLocalTracksRandomly();
 });
 
 document.getElementById("openPlaybackScreen").addEventListener("click", () => {
@@ -703,8 +771,9 @@ localDropZone.addEventListener("drop", event => {
 });
 
 localFilesInput.addEventListener("change", event => {
-  addLocalAudioFiles(Array.from(event.target.files || []));
+  const selectedFiles = Array.from(event.target.files || []);
   event.target.value = "";
+  addLocalAudioFiles(selectedFiles);
 });
 
 async function addLocalAudioFiles(files) {
@@ -744,49 +813,56 @@ async function addLocalAudioFiles(files) {
     return;
   }
 
-  localStatus.textContent = "Añadiendo canciones a tu biblioteca...";
+  localStatus.textContent =
+    `Añadiendo ${newTracks.length} ${newTracks.length === 1 ? "canción seleccionada" : "canciones seleccionadas"} a tu biblioteca...`;
   localTracks.push(...newTracks);
   playlist = localTracks;
 
   let persistenceError = false;
   try {
-    await Promise.all(newTracks.map((track, index) => {
+    const addedAt = Date.now();
+    await saveLocalMusicRecords(newTracks.map((track, index) => {
       const file = filesByTrackId.get(track.id);
-      return saveLocalMusicRecord({
+      return {
         id: track.id,
         kind: "audio",
         name: file.name,
         type: file.type,
         blob: file,
         lastModified: file.lastModified,
-        addedAt: Date.now() + index
-      });
+        addedAt: addedAt + index
+      };
     }));
   } catch (error) {
     console.error("No se pudo guardar la biblioteca local:", error);
     persistenceError = true;
-    localStatus.textContent =
-      "Las canciones se cargaron, pero no se pudieron guardar para la próxima visita. Revisa el espacio disponible del navegador.";
   }
 
   renderLocalTracks();
   const skippedCount = files.length - audioFiles.length;
-  if (skippedCount) {
-    localStatus.textContent +=
-      ` Se omitieron ${skippedCount} archivo(s) que no parecen ser de audio.`;
-  } else if (!persistenceError && currentTrack?.source === "Local") {
-    localStatus.textContent =
-      `${newTracks.length} canciones añadidas a tu biblioteca. La reproducción actual continúa.`;
-  } else if (!persistenceError) {
-    localStatus.textContent =
-      `${newTracks.length} ${newTracks.length === 1 ? "canción añadida" : "canciones añadidas"}. Iniciando reproducción...`;
-  }
+  const duplicateCount = audioFiles.length - newTracks.length;
+  playAllLocalTracksRandomly();
 
-  if (currentTrack?.source === "Local") {
-    currentIndex = localTracks.findIndex(track => track.id === currentTrack.id);
-  } else {
-    playTrack(localTracks.indexOf(newTracks[0]));
+  const messages = [
+    `${newTracks.length} ${newTracks.length === 1 ? "canción añadida" : "canciones añadidas"}.`
+  ];
+  if (duplicateCount) {
+    messages.push(
+      `${duplicateCount} ${duplicateCount === 1 ? "ya estaba" : "ya estaban"} en tu biblioteca.`
+    );
   }
+  messages.push("Toda tu biblioteca quedó en reproducción aleatoria.");
+  if (persistenceError) {
+    messages.push(
+      "No se pudieron guardar todas las canciones para la próxima visita. Revisa el espacio disponible del navegador."
+    );
+  }
+  if (skippedCount) {
+    messages.push(
+      `Se omitieron ${skippedCount} archivo(s) que no parecen ser de audio.`
+    );
+  }
+  localStatus.textContent = messages.join(" ");
 }
 
 function isLocalAudioFile(file) {
@@ -989,6 +1065,7 @@ function renderLocalTracks() {
   localList.replaceChildren();
   document.getElementById("localTrackCount").textContent =
     `${localTracks.length} ${localTracks.length === 1 ? "canción" : "canciones"}`;
+  document.getElementById("shuffleLocalTracks").disabled = localTracks.length === 0;
   if (!localTracks.length) {
     const empty = document.createElement("p");
     empty.className = "empty";
@@ -1023,6 +1100,7 @@ function renderLocalTracks() {
     play.setAttribute("aria-label", `Reproducir ${track.name}`);
     play.addEventListener("click", () => {
       playlist = localTracks;
+      shuffleLocalPlayback = false;
       playTrack(index);
     });
 

@@ -9,7 +9,7 @@
   <title>MISTERPLAY MUSIC</title>
   <link rel="stylesheet" href="css/styles.css">
 </head>
-<body class="embedded-player">
+<body>
 
 <header class="topbar">
   <div class="brand">
@@ -58,11 +58,17 @@
       <strong>Tu colección, a un clic</strong>
       <span class="local-drop-copy">Arrastra tus canciones aquí o explora el dispositivo</span>
       <button id="chooseLocalFiles" class="local-browse-button"
-        type="button">＋ Elegir canciones</button>
+        type="button">＋ Añadir varias canciones</button>
       <small>MP3 · MPEG · WAV · OGG · M4A · FLAC y más</small>
       <input id="localFiles" type="file"
         accept="audio/*,.mp1,.mp2,.mp3,.mpeg,.mpg,.wav,.ogg,.oga,.opus,.m4a,.aac,.flac,.webm,.aiff,.aif"
         multiple hidden>
+    </div>
+    <p class="hint local-device-note">Selecciona varias canciones a la vez desde Archivos o Música; todas las compatibles se añadirán a tu biblioteca. En el móvil, selecciónalas desde el explorador del dispositivo. Por privacidad, el navegador no puede buscar archivos sin que tú los elijas.</p>
+    <div class="local-playback-actions">
+      <button id="shuffleLocalTracks" type="button" disabled>
+        🔀 Reproducir toda mi música aleatoriamente
+      </button>
     </div>
     <div class="local-upload-actions">
       <label class="upload-button secondary-upload">
