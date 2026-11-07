@@ -32,6 +32,9 @@ const playbackScreen = document.getElementById("playbackScreen");
 const playbackCover = document.getElementById("playbackCover");
 const playbackProgress = document.getElementById("playbackProgress");
 const playbackVolume = document.getElementById("playbackVolume");
+const mediaSession = "mediaSession" in navigator
+  ? navigator.mediaSession
+  : null;
 
 let playlist = [];
 let currentIndex = -1;
@@ -192,6 +195,7 @@ function updatePlayer(track) {
     track.source === "Radio" ? `${track.artist} · EN VIVO` : track.artist;
   playbackCover.src = playerCover.src;
   playbackCover.alt = playerCover.alt;
+  updateMediaSessionMetadata(track);
 
   document.getElementById("playButton").textContent = "Ⅱ";
   document.getElementById("playButton").setAttribute("aria-label", "Pausar");
@@ -221,7 +225,87 @@ function togglePlayback() {
   }
 }
 
+function updateMediaSessionMetadata(track) {
+  if (!mediaSession || !("MediaMetadata" in window)) return;
+
+  const artwork = track.image || createCoverArt(track.name, track.artist);
+  try {
+    mediaSession.metadata = new MediaMetadata({
+      title: track.name,
+      artist: track.artist || "MISTERPLAY MUSIC",
+      album: "MISTERPLAY MUSIC",
+      artwork: [{ src: artwork, sizes: "512x512" }]
+    });
+  } catch (error) {
+    console.error("No se pudo actualizar la información de reproducción del sistema:", error);
+  }
+  updateMediaSessionPosition();
+}
+
+function updateMediaSessionPlaybackState(state) {
+  if (!mediaSession) return;
+  try {
+    mediaSession.playbackState = state;
+  } catch (error) {
+    console.error("No se pudo actualizar el estado de reproducción del sistema:", error);
+  }
+}
+
+function updateMediaSessionPosition() {
+  if (!mediaSession?.setPositionState) return;
+
+  try {
+    if (!Number.isFinite(audio.duration) || audio.duration <= 0) {
+      mediaSession.setPositionState();
+      return;
+    }
+
+    mediaSession.setPositionState({
+      duration: audio.duration,
+      playbackRate: audio.playbackRate || 1,
+      position: Math.min(audio.currentTime, audio.duration)
+    });
+  } catch (error) {
+    console.error("No se pudo actualizar el avance de reproducción del sistema:", error);
+  }
+}
+
+function registerMediaSessionActions() {
+  if (!mediaSession) return;
+
+  const actions = {
+    play: () => {
+      if (!audio.src || !audio.paused) return;
+      const requestedTrack = currentTrack;
+      audio.play().catch(error => {
+        if (error.name === "AbortError" || currentTrack !== requestedTrack) return;
+        console.error("No se pudo reanudar desde los controles del sistema:", error);
+        if (currentTrack?.source === "Local") {
+          localStatus.textContent =
+            "No se pudo reanudar esta canción desde la notificación. Vuelve a intentarlo.";
+        }
+      });
+    },
+    pause: () => audio.pause(),
+    previoustrack: playPreviousTrack,
+    nexttrack: playNextTrack
+  };
+
+  Object.entries(actions).forEach(([action, handler]) => {
+    try {
+      mediaSession.setActionHandler(action, handler);
+    } catch (error) {
+      if (error.name !== "NotSupportedError") {
+        console.error(`No se pudo activar el control multimedia "${action}":`, error);
+      }
+    }
+  });
+}
+
+registerMediaSessionActions();
+
 audio.addEventListener("play", () => {
+  updateMediaSessionPlaybackState("playing");
   document.getElementById("playButton").textContent = "Ⅱ";
   document.getElementById("playButton").setAttribute("aria-label", "Pausar");
   document.getElementById("screenPlayButton").textContent = "Ⅱ";
@@ -232,6 +316,7 @@ audio.addEventListener("play", () => {
 });
 
 audio.addEventListener("pause", () => {
+  updateMediaSessionPlaybackState("paused");
   document.getElementById("playButton").textContent = "▶";
   document.getElementById("playButton").setAttribute("aria-label", "Reproducir");
   document.getElementById("screenPlayButton").textContent = "▶";
@@ -339,6 +424,7 @@ document.addEventListener("keydown", event => {
 
 // BARRA DE PROGRESO
 audio.addEventListener("timeupdate", () => {
+  updateMediaSessionPosition();
   if (!Number.isFinite(audio.duration)) return;
 
   const progress = (audio.currentTime / audio.duration) * 100;
@@ -353,6 +439,9 @@ audio.addEventListener("timeupdate", () => {
   document.getElementById("duration").textContent = duration;
   document.getElementById("playbackDuration").textContent = duration;
 });
+
+audio.addEventListener("durationchange", updateMediaSessionPosition);
+audio.addEventListener("loadedmetadata", updateMediaSessionPosition);
 
 document.getElementById("progress").addEventListener("input", event => {
   if (Number.isFinite(audio.duration)) {
