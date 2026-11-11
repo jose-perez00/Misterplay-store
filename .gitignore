@@ -1,0 +1,9 @@
+node_modules/
+qa-movil.mjs
+*-check*.png
+movil-top.png
+movil-bottom.png
+.DS_Store
+Thumbs.db
+qa-*.mjs
+diag.png
